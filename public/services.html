@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Running Services</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+
+    /* Navbar Styles */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background-color: #333;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    .navbar h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      margin-left: 20px;
+      padding: 8px 12px;
+      background-color: #4CAF50;
+      border-radius: 5px;
+    }
+
+    h1 { margin-top: 80px; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+    th { background-color: #f2f2f2; }
+    button { padding: 8px 16px; background-color: #f44336; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #e74c3c; }
+    .control-buttons button { margin-right: 5px; background-color: #4CAF50; }
+    .control-buttons button:hover { background-color: #45a049; }
+    .message { padding: 10px; font-style: italic; }
+
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <div class="navbar">
+    <h1>System Info Dashboard</h1>
+    <div class="nav-links">
+      <a href="/">Dashboard</a>
+      <a href="graphicalData.html">Graphical Data</a>
+      <a href="processes.html">Processes</a>
+      <a href="services.html">Services</a>
+    </div>
+  </div>
+
+  <h1>Running Services</h1>
+  <table id="serviceTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Status</th>
+        <th>PID</th>
+        <th>User</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Services will be inserted here -->
+    </tbody>
+  </table>
+
+  <script>
+    // Fetch services data from the backend
+    async function fetchServices() {
+      try {
+        const response = await fetch('/services');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        renderServices(data);
+      } catch (error) {
+        console.error("Error fetching services:", error);
+        alert("Error fetching services data.");
+      }
+    }
+
+    // Function to render services in the table
+    function renderServices(data) {
+      const serviceTableBody = document.getElementById('serviceTable').getElementsByTagName('tbody')[0];
+      serviceTableBody.innerHTML = ''; // Clear existing rows
+
+      if (data.list && data.list.length > 0) {
+        data.list.forEach(service => {
+          const row = serviceTableBody.insertRow();
+          row.innerHTML = `
+            <td>${service.name}</td>
+            <td>${service.status}</td>
+            <td>${service.pid || 'N/A'}</td>
+            <td>${service.user || 'N/A'}</td>
+            <td class="control-buttons">
+              <button onclick="controlService('${service.name}', 'stop')">Stop</button>
+              <button onclick="controlService('${service.name}', 'pause')">Pause</button>
+              <button onclick="controlService('${service.name}', 'continue')">Continue</button>
+            </td>
+          `;
+        });
+      } else {
+        const row = serviceTableBody.insertRow();
+        row.innerHTML = `<td colspan="5" class="message">No services found.</td>`;
+      }
+    }
+
+    // Function to send control commands to the backend
+    async function controlService(serviceName, action) {
+      try {
+        const response = await fetch(`/services/${serviceName}/${action}`, { method: 'POST' });
+        if (response.ok) {
+          alert(`${action.charAt(0).toUpperCase() + action.slice(1)} action for ${serviceName} was successful.`);
+          fetchServices(); // Re-fetch the services to update the list
+        } else {
+          alert(`Failed to ${action} the service.`);
+        }
+      } catch (error) {
+        console.error("Error controlling service:", error);
+        alert("Error while controlling the service.");
+      }
+    }
+
+    // Fetch services on page load
+    fetchServices();
+  </script>
+
+</body>
+</html>
