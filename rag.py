@@ -97,7 +97,11 @@ class RAGSimulator(tk.Tk):
         self.offset_x = 0
         self.offset_y = 0
         self.edge_counts = defaultdict(int)
-        
+
+        # Undo/Redo stacks
+        self.undo_stack = []
+        self.redo_stack = []
+
         # Layout parameters
         self.process_x = 150
         self.resource_x = 1050
@@ -106,67 +110,6 @@ class RAGSimulator(tk.Tk):
         self.resource_width = 80
         self.resource_height = 80
         
-        # Translations
-        self.translations = {
-            'English': {
-                'add_process': "Add Process",
-                'add_resource': "Add Resource",
-                'edge_creation': "Edge Creation",
-                'simulation': "Simulation",
-                'detect_deadlock': "Detect Deadlock",
-                'reset_graph': "Reset Graph",
-                'process_label': "Add Process",
-                'resource_label': "Add Resource",
-                'request_edge': "Request Edge",
-                'allocation_edge': "Allocation Edge",
-                'clear_selection': "Clear Selection",
-                'no_deadlock': "No deadlock detected",
-                'deadlock_detected': "Deadlock detected!",
-                'error': "Error",
-                'quit': "Do you want to quit?",
-                'selection_cleared': "Selection cleared",
-                'ready': "Ready"
-            },
-            'Spanish': {
-                'add_process': "Agregar Proceso",
-                'add_resource': "Agregar Recurso",
-                'edge_creation': "Creación de Arista",
-                'simulation': "Simulación",
-                'detect_deadlock': "Detectar Deadlock",
-                'reset_graph': "Reiniciar Grafo",
-                'process_label': "Agregar Proceso",
-                'resource_label': "Agregar Recurso",
-                'request_edge': "Arista de Solicitud",
-                'allocation_edge': "Arista de Asignación",
-                'clear_selection': "Limpiar Selección",
-                'no_deadlock': "No se detectó deadlock",
-                'deadlock_detected': "¡Deadlock detectado!",
-                'error': "Error",
-                'quit': "¿Quieres salir?",
-                'selection_cleared': "Selección limpiada",
-                'ready': "Listo"
-            },
-            'French': {
-                'add_process': "Ajouter un Processus",
-                'add_resource': "Ajouter une Ressource",
-                'edge_creation': "Création de Lien",
-                'simulation': "Simulation",
-                'detect_deadlock': "Détecter le Deadlock",
-                'reset_graph': "Réinitialiser le Graphe",
-                'process_label': "Ajouter un Processus",
-                'resource_label': "Ajouter une Ressource",
-                'request_edge': "Lien de Demande",
-                'allocation_edge': "Lien d'Allocation",
-                'clear_selection': "Effacer la Sélection",
-                'no_deadlock': "Aucun deadlock détecté",
-                'deadlock_detected': "Deadlock détecté!",
-                'error': "Erreur",
-                'quit': "Voulez-vous quitter?",
-                'selection_cleared': "Sélection effacée",
-                'ready': "Prêt"
-            }
-        }
-
         self.create_widgets()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -174,79 +117,52 @@ class RAGSimulator(tk.Tk):
         control_frame = ttk.Frame(self)
         control_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
-        # Language controls
-        ttk.Label(control_frame, text="Select Language").pack(pady=5)
-        self.language_var = tk.StringVar(value='English')
-        self.language_dropdown = ttk.Combobox(control_frame, textvariable=self.language_var, 
-                                               values=['English', 'Spanish', 'French'], state='readonly')
-        self.language_dropdown.pack(pady=2)
-        self.language_dropdown.bind("<<ComboboxSelected>>", self.change_language)
-
         # Process controls
-        ttk.Label(control_frame, text=self.translations['English']['process_label']).pack(pady=5)
+        ttk.Label(control_frame, text="Add Process").pack(pady=5)
         self.process_entry = ttk.Entry(control_frame)
         self.process_entry.pack(pady=2)
-        ttk.Button(control_frame, text=self.translations['English']['add_process'], command=self.add_process).pack(pady=2)
+        ttk.Button(control_frame, text="Add Process", command=self.add_process).pack(pady=2)
 
         # Resource controls
-        ttk.Label(control_frame, text=self.translations['English']['resource_label']).pack(pady=5)
+        ttk.Label(control_frame, text="Add Resource").pack(pady=5)
         self.resource_entry = ttk.Entry(control_frame)
         self.resource_entry.pack(pady=2)
         self.instance_spin = ttk.Spinbox(control_frame, from_=1, to=10, width=5)
         self.instance_spin.pack(pady=2)
-        ttk.Button(control_frame, text=self.translations['English']['add_resource'], command=self.add_resource).pack(pady=2)
+        ttk.Button(control_frame, text="Add Resource", command=self.add_resource).pack(pady=2)
 
         # Edge controls
-        ttk.Label(control_frame, text=self.translations['English']['edge_creation']).pack(pady=(20, 5))
+        ttk.Label(control_frame, text="Edge Creation").pack(pady=(20, 5))
         self.count_spin = ttk.Spinbox(control_frame, from_=1, to=5, width=5)
         self.count_spin.pack(pady=2)
-        ttk.Button(control_frame, text=self.translations['English']['request_edge'], 
+        ttk.Button(control_frame, text="Request Edge", 
                  command=lambda: self.set_edge_mode("request")).pack(pady=2)
-        ttk.Button(control_frame, text=self.translations['English']['allocation_edge'], 
+        ttk.Button(control_frame, text="Allocation Edge", 
                  command=lambda: self.set_edge_mode("allocation")).pack(pady=2)
-        ttk.Button(control_frame, text=self.translations['English']['clear_selection'], 
+        ttk.Button(control_frame, text="Clear Selection", 
                  command=self.clear_selection).pack(pady=2)
 
+        # Undo/Redo controls
+        ttk.Button(control_frame, text="Undo", command=self.undo).pack(pady=2)
+        ttk.Button(control_frame, text="Redo", command=self.redo).pack(pady=2)
+
         # Simulation controls
-        ttk.Label(control_frame, text=self.translations['English']['simulation']).pack(pady=(20, 5))
-        ttk.Button(control_frame, text=self.translations['English']['detect_deadlock'], 
+        ttk.Label(control_frame, text="Simulation").pack(pady=(20, 5))
+        ttk.Button(control_frame, text="Detect Deadlock", 
                  command=self.detect_deadlock).pack(pady=2)
-        ttk.Button(control_frame, text=self.translations['English']['reset_graph'], 
+        ttk.Button(control_frame, text="Reset Graph", 
                  command=self.reset_graph).pack(pady=2)
 
         # Canvas setup
         self.canvas = tk.Canvas(self, bg='white')
         self.canvas.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        self.status = ttk.Label(self, text=self.translations['English']['ready'], relief=tk.SUNKEN)
+        self.status = ttk.Label(self, text="Ready", relief=tk.SUNKEN)
         self.status.pack(side=tk.BOTTOM, fill=tk.X)
 
         # Event bindings
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
-
-    def change_language(self, event):
-        selected_language = self.language_var.get()
-        self.update_ui_text(selected_language)
-
-    def update_ui_text(self, language):
-        # Update labels and buttons based on the selected language
-        self.process_entry_label.config(text=self.translations[language]['process_label'])
-        self.resource_entry_label.config(text=self.translations[language]['resource_label'])
-        self.status.config(text=self.translations[language]['ready'])
-        
-        # Update other UI elements similarly...
-        for widget in self.winfo_children():
-            if isinstance(widget, ttk.Button):
-                if widget.cget("text") in self.translations['English'].values():
-                    for key, value in self.translations[language].items():
-                        if widget.cget("text") == value:
-                            widget.config(text=value)
-            elif isinstance(widget, ttk.Label):
-                if widget.cget("text") in self.translations['English'].values():
-                    for key, value in self.translations[language].items():
-                        if widget.cget("text") == value:
-                            widget.config(text=value)
 
     def set_edge_mode(self, edge_type):
         self.edge_creation_mode = edge_type
@@ -461,10 +377,12 @@ class RAGSimulator(tk.Tk):
                 if node1 in self.rag.processes and node2 in self.rag.resources:
                     self.rag.add_request(node1, node2, count)
                     valid = True
+                    self.push_undo_action('request', node1, node2, count)
             elif self.edge_creation_mode == 'allocation':
                 if node2 in self.rag.processes and node1 in self.rag.resources:
                     self.rag.add_allocation(node2, node1, count)
                     valid = True
+                    self.push_undo_action('allocation', node2, node1, count)
             
             if not valid:
                 raise ValueError("Invalid edge direction for selected mode")
@@ -475,6 +393,43 @@ class RAGSimulator(tk.Tk):
             messagebox.showerror("Error", str(e))
             self.clear_selection()
 
+    def push_undo_action(self, action_type, node1, node2, count):
+        self.undo_stack.append((action_type, node1, node2, count))
+        self.redo_stack.clear()  # Clear redo stack on new action
+
+    def undo(self):
+        if not self.undo_stack:
+            messagebox.showinfo("Undo", "No actions to undo.")
+            return
+        
+        action_type, node1, node2, count = self.undo_stack.pop()
+        if action_type == 'request':
+            self.rag.requests[(node1, node2)] -= count
+            if self.rag.requests[(node1, node2)] <= 0:
+                del self.rag.requests[(node1, node2)]
+        elif action_type == 'allocation':
+            self.rag.allocations[(node2, node1)] -= count
+            self.rag.resources[node1]['available'] += count
+            if self.rag.allocations[(node2, node1)] <= 0:
+                del self.rag.allocations[(node2, node1)]
+        
+        self.redo_stack.append((action_type, node1, node2, count))
+        self.update_display()
+
+    def redo(self):
+        if not self.redo_stack:
+            messagebox.showinfo("Redo", "No actions to redo.")
+            return
+        
+        action_type, node1, node2, count = self.redo_stack.pop()
+        if action_type == 'request':
+            self.rag.add_request(node1, node2, count)
+        elif action_type == 'allocation':
+            self.rag.add_allocation(node2, node1, count)
+        
+        self.undo_stack.append((action_type, node1, node2, count))
+        self.update_display()
+
     def add_process(self):
         custom_name = self.process_entry.get().strip()
         try:
@@ -482,6 +437,7 @@ class RAGSimulator(tk.Tk):
             if not custom_name:
                 self.process_entry.delete(0, tk.END)
             self.node_positions[process_id] = self.get_next_node_position('process')
+            self.push_undo_action('add_process', process_id, None, 0)
             self.update_display()
         except ValueError as e:
             messagebox.showerror("Error", str(e))
@@ -494,6 +450,7 @@ class RAGSimulator(tk.Tk):
             if not custom_name:
                 self.resource_entry.delete(0, tk.END)
             self.node_positions[resource_id] = self.get_next_node_position('resource')
+            self.push_undo_action('add_resource', resource_id, None, instances)
             self.update_display()
         except ValueError as e:
             messagebox.showerror("Error", str(e))
@@ -501,7 +458,7 @@ class RAGSimulator(tk.Tk):
     def clear_selection(self):
         self.selected_nodes = []
         self.edge_creation_mode = None
-        self.status.config(text=self.translations[self.language_var.get()]['selection_cleared'])
+        self.status.config(text="Selection cleared")
         self.update_display()
 
     def detect_deadlock(self):
@@ -510,19 +467,21 @@ class RAGSimulator(tk.Tk):
             if deadlock:
                 messagebox.showwarning("Deadlock Detected", 
                                       f"Deadlocked processes: {', '.join(processes)}")
-                self.status.config(text=self.translations[self.language_var.get()]['deadlock_detected'])
+                self.status.config(text="Deadlock detected!")
             else:
-                messagebox.showinfo("No Deadlock", self.translations[self.language_var.get()]['no_deadlock'])
-                self.status.config(text=self.translations[self.language_var.get()]['no_deadlock'])
+                messagebox.showinfo("No Deadlock", "System is deadlock-free")
+                self.status.config(text="No deadlock detected")
         except Exception as e:
-            messagebox.showerror(self.translations[self.language_var.get()]['error'], str(e))
+            messagebox.showerror("Error", str(e))
 
     def reset_graph(self):
         self.rag = ResourceAllocationGraph()
         self.node_positions = {}
         self.selected_nodes = []
+        self.undo_stack.clear()
+        self.redo_stack.clear()
         self.update_display()
-        self.status.config(text=self.translations[self.language_var.get()]['ready'])
+        self.status.config(text="Graph reset")
 
     def get_next_node_position(self, node_type):
         existing = [pos for node, pos in self.node_positions.items() 
@@ -545,7 +504,7 @@ class RAGSimulator(tk.Tk):
         return (x, y)
 
     def on_close(self):
-        if messagebox.askokcancel("Quit", self.translations[self.language_var.get()]['quit']):
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
             self.destroy()
             sys.exit()
 
