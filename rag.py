@@ -111,28 +111,45 @@ class RAGSimulator(tk.Tk):
         self.resource_height = 80
         
         self.create_widgets()
+        self.create_menu()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def create_menu(self):
+        menu_bar = tk.Menu(self)
+
+        # Edit Menu for Undo/Redo
+        edit_menu = tk.Menu(menu_bar, tearoff=0)
+        edit_menu.add_command(label="Undo", command=self.undo)
+        edit_menu.add_command(label="Redo", command=self.redo)
+        menu_bar.add_cascade(label="Edit", menu=edit_menu)
+
+        # Help Menu
+        help_menu = tk.Menu(menu_bar, tearoff=0)
+        help_menu.add_command(label="Help", command=self.show_help)
+        menu_bar.add_cascade(label="Help", menu=help_menu)
+
+        self.config(menu=menu_bar)
 
     def create_widgets(self):
         control_frame = ttk.Frame(self)
         control_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
         # Process controls
-        ttk.Label(control_frame, text="Add Process").pack(pady=5)
-        self.process_entry = ttk.Entry(control_frame)
+        ttk.Label(control_frame, text="Add Process", font=("Arial", 12)).pack(pady=5)
+        self.process_entry = ttk.Entry(control_frame, width=20)
         self.process_entry.pack(pady=2)
         ttk.Button(control_frame, text="Add Process", command=self.add_process).pack(pady=2)
 
         # Resource controls
-        ttk.Label(control_frame, text="Add Resource").pack(pady=5)
-        self.resource_entry = ttk.Entry(control_frame)
+        ttk.Label(control_frame, text="Add Resource", font=("Arial", 12)).pack(pady=5)
+        self.resource_entry = ttk.Entry(control_frame, width=20)
         self.resource_entry.pack(pady=2)
         self.instance_spin = ttk.Spinbox(control_frame, from_=1, to=10, width=5)
         self.instance_spin.pack(pady=2)
-        ttk.Button(control_frame, text="Add Resource", command=self.add_resource).pack(pady=2)
+        ttk.Button(control_frame, text="Add Resource", command=self.add_resource).pack(pady=2)  # Ensure this button is included
 
         # Edge controls
-        ttk.Label(control_frame, text="Edge Creation").pack(pady=(20, 5))
+        ttk.Label(control_frame, text="Edge Creation", font=("Arial", 12)).pack(pady=(20, 5))
         self.count_spin = ttk.Spinbox(control_frame, from_=1, to=5, width=5)
         self.count_spin.pack(pady=2)
         ttk.Button(control_frame, text="Request Edge", 
@@ -142,12 +159,8 @@ class RAGSimulator(tk.Tk):
         ttk.Button(control_frame, text="Clear Selection", 
                  command=self.clear_selection).pack(pady=2)
 
-        # Undo/Redo controls
-        ttk.Button(control_frame, text="Undo", command=self.undo).pack(pady=2)
-        ttk.Button(control_frame, text="Redo", command=self.redo).pack(pady=2)
-
         # Simulation controls
-        ttk.Label(control_frame, text="Simulation").pack(pady=(20, 5))
+        ttk.Label(control_frame, text="Simulation", font=("Arial", 12)).pack(pady=(20, 5))
         ttk.Button(control_frame, text="Detect Deadlock", 
                  command=self.detect_deadlock).pack(pady=2)
         ttk.Button(control_frame, text="Reset Graph", 
@@ -156,13 +169,40 @@ class RAGSimulator(tk.Tk):
         # Canvas setup
         self.canvas = tk.Canvas(self, bg='white')
         self.canvas.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        self.status = ttk.Label(self, text="Ready", relief=tk.SUNKEN)
+        self.status = ttk.Label(self, text="Ready", relief=tk.SUNKEN, anchor='w')
         self.status.pack(side=tk.BOTTOM, fill=tk.X)
 
         # Event bindings
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
+
+    def show_help(self):
+        help_window = tk.Toplevel(self)
+        help_window.title("Help")
+        help_window.geometry("400x400")
+        
+        help_text = (
+            "Resource Allocation Graph Simulator Help\n\n"
+            "1. Add Process:\n"
+            "   - Enter a process name and click 'Add Process' to create a new process.\n\n"
+            "2. Add Resource:\n"
+            "   - Enter a resource name and specify the number of instances, then click 'Add Resource'.\n\n"
+            "3. Edge Creation:\n"
+            "   - Select two nodes (one process and one resource) to create a request edge.\n"
+            "   - Select a resource and a process to create an allocation edge.\n\n"
+            "4. Undo/Redo:\n"
+            "   - Use 'Undo' to revert the last action and 'Redo' to reapply it.\n\n"
+            "5. Detect Deadlock:\n"
+            "   - Click 'Detect Deadlock' to check if there are any deadlocked processes.\n\n"
+            "6. Reset Graph:\n"
+            "   - Click 'Reset Graph' to clear all processes and resources.\n\n"
+            "7. Drag Nodes:\n"
+            "   - Click and drag nodes to reposition them on the canvas."
+        )
+        
+        help_label = ttk.Label(help_window, text=help_text, justify='left', padding=10)
+        help_label.pack(expand=True, fill=tk.BOTH)
 
     def set_edge_mode(self, edge_type):
         self.edge_creation_mode = edge_type
