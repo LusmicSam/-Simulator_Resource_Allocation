@@ -64,13 +64,13 @@ Both versions allow you to create, visualize, and analyze resource allocation gr
 
 #### For the Standalone Executable 💿
 1. **Option 1: Download Pre-built Executable**
-   - Grab the latest `rag-simulator.exe` from the [releases page](https://github.com/yourusername/rag-simulator/releases).
+   - Grab the latest `rag-simulator.exe` from the [releases page](https://github.com/LusmicSam/rag-simulator/releases).
    - Double-click to run—no installation needed!
 
 2. **Option 2: Build from Source**
    - Clone the repository:
      ```bash
-     git clone https://github.com/yourusername/rag-simulator.git
+     git clone https://github.com/LusmicSam/rag-simulator.git
      cd rag-simulator
      ```
    - Install dependencies:
@@ -86,7 +86,7 @@ Both versions allow you to create, visualize, and analyze resource allocation gr
 #### For the Web Version 🌐
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/yourusername/rag-simulator.git
+   git clone https://github.com/LusmicSam/rag-simulator.git
    cd rag-simulator
    ```
 
@@ -153,6 +153,8 @@ create_graph {
 ---
 
 ## Contributing 🤝
+--Pari Gaur
+--Priyanshu Mehrotra
 
 We’d love your help! Feel free to:
 - Open an issue to report bugs or suggest features.
