@@ -131,7 +131,7 @@ class RAGSimulator(tk.Tk):
         self.title("Resource Allocation Graph Simulator with ML")
         self.geometry("1200x800")
         self.rag = ResourceAllocationGraph()
-        self.ml_model = joblib.load(resource_path('rag_deadlock_model.joblib'))  # Updated path handling
+        self.ml_model = None  # Initialize as None
         self.selected_nodes = []
         self.edge_creation_mode = None
         self.node_positions = {}
@@ -146,6 +146,13 @@ class RAGSimulator(tk.Tk):
         self.process_radius = 35
         self.resource_width = 90
         self.resource_height = 90
+
+        # Attempt to load the ML model
+        try:
+            self.ml_model = joblib.load(resource_path('C:/Users/shiva/OneDrive/Documents/GitHub/-Simulator_Resource_Allocation/rag_deadlock_model.joblib'))
+        except Exception as e:
+            messagebox.showwarning("ML Model Missing", "ML model could not be loaded. Deadlock prediction will be disabled.")
+            self.status_message = "ML model not loaded"
 
         self.style = ttk.Style()
         self.style.configure("TButton", padding=6, font=('Arial', 11))
@@ -188,18 +195,30 @@ class RAGSimulator(tk.Tk):
         main_frame = ttk.Frame(self)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
+        # Create a canvas and a scrollbar for the control panel
         control_canvas = tk.Canvas(main_frame, width=300)
         control_scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=control_canvas.yview)
-        control_frame = ttk.LabelFrame(control_canvas, text="Control Panel", padding=10)
+        control_frame = ttk.Frame(control_canvas)  # Use a regular Frame instead of LabelFrame for scrolling
 
+        # Configure the canvas and scrollbar
         control_canvas.configure(yscrollcommand=control_scrollbar.set)
-        control_canvas.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
         control_scrollbar.pack(side=tk.LEFT, fill=tk.Y)
+        control_canvas.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
         control_canvas.create_window((0, 0), window=control_frame, anchor="nw")
 
-        control_frame.bind("<Configure>", lambda e: control_canvas.configure(scrollregion=control_canvas.bbox("all")))
-        control_canvas.bind_all("<MouseWheel>", lambda event: control_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units"))
+        # Ensure the canvas scrolls properly
+        def on_frame_configure(event):
+            control_canvas.configure(scrollregion=control_canvas.bbox("all"))
 
+        control_frame.bind("<Configure>", on_frame_configure)
+
+        # Enable scrolling with the mouse wheel
+        def on_mouse_wheel(event):
+            control_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        control_canvas.bind_all("<MouseWheel>", on_mouse_wheel)
+
+        # Add widgets to the control frame
         proc_frame = ttk.LabelFrame(control_frame, text="Process Management", padding=5)
         proc_frame.pack(fill=tk.X, pady=5)
         ttk.Label(proc_frame, text="Process Name:").pack(pady=2)
@@ -239,22 +258,26 @@ class RAGSimulator(tk.Tk):
                   command=self.check_safety).pack(fill=tk.X, pady=2)
         ttk.Button(sim_frame, text="Predict Deadlock % with ML", 
                   command=self.predict_deadlock_percentage).pack(fill=tk.X, pady=2)
+        ttk.Button(sim_frame, text="Resolve Deadlock", 
+                  command=self.resolve_deadlock).pack(fill=tk.X, pady=2)  # New button
         ttk.Button(sim_frame, text="Reset Graph", 
                   command=self.reset_graph).pack(fill=tk.X, pady=2)
 
+        # Add a canvas for the graph display
         canvas_frame = ttk.Frame(main_frame, relief=tk.SUNKEN, borderwidth=2)
         canvas_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         self.canvas = tk.Canvas(canvas_frame, bg='white', highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
+        # Add a status bar
         self.status = ttk.Label(main_frame, text="Ready", style="Status.TLabel", 
                               relief=tk.SUNKEN, anchor='w', padding=5)
         self.status.pack(side=tk.BOTTOM, fill=tk.X)
 
+        # Bind canvas events
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
-        self.create_tooltips()
 
     def create_tooltips(self):
         def create_tooltip(widget, text):
@@ -661,29 +684,90 @@ class RAGSimulator(tk.Tk):
                 self.status.config(text="System is not safe")
         except Exception as e:
             messagebox.showerror("Error", str(e))
-
     def extract_features(self):
         rag = self.rag
         n_processes = len(rag.processes)
         n_resources = len(rag.resources)
         total_instances = sum(info['total'] for info in rag.resources.values())
-        total_allocated = sum(sum(rag.allocations.get((p, r), 0) for r in rag.resources) for p in rag.processes)
-        total_requested = sum(sum(rag.requests.get((p, r), 0) for r in rag.resources) for p in rag.processes)
-        avg_allocation = total_allocated / n_processes if n_processes > 0 else 0
-        avg_request = total_requested / n_processes if n_processes > 0 else 0
-        max_allocation = max((sum(rag.allocations.get((p, r), 0) for r in rag.resources) for p in rag.processes), default=0)
-        max_request = max((sum(rag.requests.get((p, r), 0) for r in rag.resources) for p in rag.processes), default=0)
+        total_allocated = sum(rag.allocations.values())
+        total_requested = sum(rag.requests.values())
         n_allocation_edges = sum(1 for cnt in rag.allocations.values() if cnt > 0)
         n_request_edges = sum(1 for cnt in rag.requests.values() if cnt > 0)
-        resource_utilization = np.mean([sum(rag.allocations.get((p, r), 0) for p in rag.processes) / info['total']
-                                        for r, info in rag.resources.items()]) if rag.resources else 0
-        return [
-            n_processes, n_resources, total_instances, total_allocated, total_requested,
-            avg_allocation, avg_request, max_allocation, max_request,
-            n_allocation_edges, n_request_edges, resource_utilization
+
+        # Per-process allocation and request statistics
+        allocation_per_process = {p: sum(rag.allocations.get((p, r), 0) for r in rag.resources) for p in rag.processes}
+        request_per_process = {p: sum(rag.requests.get((p, r), 0) for r in rag.resources) for p in rag.processes}
+        avg_allocation = np.mean(list(allocation_per_process.values())) if n_processes > 0 else 0
+        avg_request = np.mean(list(request_per_process.values())) if n_processes > 0 else 0
+        max_allocation = max(allocation_per_process.values(), default=0)
+        max_request = max(request_per_process.values(), default=0)
+
+        # Resource utilization
+        utilization = [sum(rag.allocations.get((p, r), 0) for p in rag.processes) / info['total']
+            for r, info in rag.resources.items()]
+        resource_utilization = np.mean(utilization) if utilization else 0
+
+        # Waiting edges (P1 -> P2 if P1 requests R and P2 holds R)
+        waiting_edges = set()
+        for r in rag.resources:
+            holders = [p for p in rag.processes if rag.allocations.get((p, r), 0) > 0]
+            requesters = [p for p in rag.processes if rag.requests.get((p, r), 0) > 0]
+            for p1 in requesters:
+                for p2 in holders:
+                    if p1 != p2:
+                        waiting_edges.add((p1, p2))
+        number_of_waiting_edges = len(waiting_edges)
+
+        # Processes with waiting relationships
+        outgoing_processes = set(p1 for (p1, p2) in waiting_edges)
+        incoming_processes = set(p2 for (p1, p2) in waiting_edges)
+        number_of_processes_with_outgoing_waiting_edges = len(outgoing_processes)
+        number_of_processes_with_incoming_waiting_edges = len(incoming_processes)
+        number_of_processes_with_both = len(outgoing_processes & incoming_processes)
+
+        # Holding and waiting processes
+        holding_processes = set(p for p in rag.processes if any(rag.allocations.get((p, r), 0) > 0 for r in rag.resources))
+        number_of_holding_processes = len(holding_processes)
+        number_of_waiting_processes = len(outgoing_processes)
+        both_waiting_and_holding = outgoing_processes & holding_processes
+        number_of_both_waiting_and_holding = len(both_waiting_and_holding)
+
+        # Resource contention features
+        fully_allocated_resources = sum(1 for r in rag.resources if rag.resources[r]['available'] == 0)
+        contested_resources = 0
+        total_contention = 0
+        max_contention = 0
+        for r in rag.resources:
+            sum_requests = sum(rag.requests.get((p, r), 0) for p in rag.processes)
+            available = rag.resources[r]['available']
+            if sum_requests > available:
+                contested_resources += 1
+                contention = sum_requests - available
+                total_contention += contention
+                max_contention = max(max_contention, contention)
+        average_contention = total_contention / contested_resources if contested_resources > 0 else 0
+        maximum_contention = max_contention
+
+        # Compile all 23 features into a list
+        features = [
+        n_processes, n_resources, total_instances, total_allocated, total_requested,
+        avg_allocation, avg_request, max_allocation, max_request,
+        n_allocation_edges, n_request_edges, resource_utilization,
+        number_of_waiting_edges, number_of_processes_with_outgoing_waiting_edges,
+        number_of_processes_with_incoming_waiting_edges, number_of_processes_with_both,
+        number_of_waiting_processes, number_of_holding_processes, number_of_both_waiting_and_holding,
+        fully_allocated_resources, contested_resources, average_contention, maximum_contention
         ]
+        return features
+
+    
 
     def predict_deadlock_percentage(self):
+        if not self.ml_model:
+            messagebox.showwarning("ML Prediction Disabled", "ML model is not loaded. Deadlock prediction is unavailable.")
+            self.status.config(text="ML Prediction: Unavailable")
+            return
+
         try:
             features = self.extract_features()
             prediction = self.ml_model.predict([features])[0]
@@ -692,15 +776,6 @@ class RAGSimulator(tk.Tk):
         except Exception as e:
             messagebox.showerror("Error", f"ML Prediction failed: {str(e)}")
 
-    def reset_graph(self):
-        if messagebox.askyesno("Reset", "Clear everything?"):
-            self.push_undo_action('import', None, None, self.rag.export_state())
-            self.rag = ResourceAllocationGraph()
-            self.node_positions = {}
-            self.selected_nodes = []
-            self.redo_stack.clear()
-            self.update_display()
-            self.status.config(text="Graph reset")
 
     def get_next_node_position(self, node_type):
         existing = [pos for node, pos in self.node_positions.items()
@@ -721,6 +796,102 @@ class RAGSimulator(tk.Tk):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
             self.destroy()
             sys.exit()
+
+    def resolve_deadlock(self):
+        """Resolve deadlock using a selected strategy."""
+        deadlock, deadlocked_processes = self.rag.detect_deadlock()
+        if not deadlock:
+            messagebox.showinfo("Deadlock Resolution", "No deadlock detected. No resolution needed.")
+            return
+
+        strategy = messagebox.askquestion(
+            "Deadlock Detected",
+            "Deadlock detected! Choose a resolution strategy:\n"
+            "1. Resource Preemption\n"
+            "2. Process Termination\n\n"
+            "Click 'Yes' for Resource Preemption or 'No' for Process Termination."
+        )
+
+        if strategy == "yes":
+            self.resource_preemption(deadlocked_processes)
+        else:
+            self.process_termination(deadlocked_processes)
+
+    def resource_preemption(self, deadlocked_processes):
+        """Resolve deadlock by preempting resources from deadlocked processes."""
+        try:
+            for process in deadlocked_processes:
+                for resource, allocation in list(self.rag.allocations.items()):
+                    if resource[0] == process:
+                        self.rag.remove_allocation(process, resource[1], allocation)
+                        self.status.config(text=f"Resources preempted from {process}")
+            self.update_display()
+            messagebox.showinfo("Resource Preemption", "Deadlock resolved by preempting resources.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Resource preemption failed: {str(e)}")
+
+    def process_termination(self, deadlocked_processes):
+        """Resolve deadlock by terminating deadlocked processes."""
+        try:
+            for process in deadlocked_processes:
+                self.rag.processes.remove(process)
+                self.node_positions.pop(process, None)
+                for resource in list(self.rag.allocations.keys()):
+                    if resource[0] == process:
+                        self.rag.remove_allocation(process, resource[1])
+                for request in list(self.rag.requests.keys()):
+                    if request[0] == process:
+                        del self.rag.requests[request]
+            self.update_display()
+            messagebox.showinfo("Process Termination", "Deadlock resolved by terminating processes.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Process termination failed: {str(e)}")
+    def reset_graph(self):
+        if not messagebox.askyesno("Reset", "Are you sure you want to clear everything?"):
+            self.status.config(text="Reset canceled")
+            return  # Exit if user selects "No"
+
+        try:
+        # Debugging: Confirm method is triggered
+            print("Resetting graph...")
+
+        # Optionally save the current state for undo (if desired)
+        # Commenting this out since you clear stacks later; remove if undo not needed
+        # self.push_undo_action('import', None, None, self.rag.export_state())
+
+        # Reset the Resource Allocation Graph
+            self.rag = ResourceAllocationGraph()
+        
+        # Reset UI-related attributes
+            self.node_positions.clear()
+            self.selected_nodes.clear()
+            self.dragging = None
+            self.edge_creation_mode = None
+            self.process_x = 150  # Reset process column position
+            self.resource_x = 400  # Reset resource column position
+
+            # Clear undo/redo stacks (remove if you want undo to persist)
+            self.undo_stack.clear()
+            self.redo_stack.clear()
+
+        # Clear input fields
+            self.process_entry.delete(0, tk.END)
+            self.resource_entry.delete(0, tk.END)
+            self.instance_spin.set(1)
+            self.count_spin.set(1)
+
+        # Update the display
+            self.canvas.delete("all")  # Explicitly clear canvas
+            self.update_display()
+
+        # Update status bar
+            self.status.config(text="Graph reset successfully")
+            print("Graph reset completed.")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to reset graph: {str(e)}")
+            self.status.config(text="Reset failed")
+            print(f"Reset error: {str(e)}")
 
 if __name__ == "__main__":
     app = RAGSimulator()
