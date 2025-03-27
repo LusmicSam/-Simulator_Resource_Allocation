@@ -1,104 +1,138 @@
 
+
 ---
 
 ```markdown
 # Resource Allocation Graph Simulator 🔄
 
-A modern simulator for visualizing and analyzing resource allocation graphs and deadlock detection in operating systems. Available as a **web-based application** with an optional **standalone executable** for offline use. 🖥️
+A modern simulator for visualizing and analyzing resource allocation graphs and deadlock detection in operating systems. This project comes in two flavors:
+
+- 💿 **Standalone Executable**: A desktop application built with Python and tkinter, perfect for offline use with ML-powered deadlock prediction and direct file system access.
+- 🌐 **Web-based Application**: A browser-based tool with real-time features, natural language support, and a responsive design.
+
+Both versions allow you to create, visualize, and analyze resource allocation graphs, detect deadlocks, and explore system safety—great for learning and experimenting with operating system concepts! 🚀
 
 ---
 
 ## Features ✨
 
-- 📊 **Interactive Resource Allocation Graph visualization**  
-- 🤖 **AI-powered deadlock prediction**  
-- 🔍 **Real-time syntax validation**  
-- 💡 **Natural language support** for graph creation  
-- 📝 **Custom graph language (RAG)** support  
-- 🎨 **Dark/Light theme** support  
-- 📱 **Responsive design** *(website only)*  
-- 🖥️ **Offline functionality** *(exe only)*  
-- ⚡ **Fast performance**  
-- 📂 **Local file support** *(exe only)*  
+### Common Features
+- 📊 **Interactive Resource Allocation Graph Visualization**: See processes and resources in action.
+- 🔍 **Deadlock Detection**: Identify deadlocks using the Banker's algorithm.
+- 🤖 **AI-Powered Deadlock Prediction**: Estimate deadlock likelihood with machine learning.
+- 📂 **Export/Import Graph States**: Save and load your work easily.
+- 🔧 **Deadlock Resolution**: Resolve deadlocks via resource preemption or process termination.
+
+### Standalone Executable Specific 💿
+- 🖥️ **Offline Functionality**: Works without an internet connection.
+- 📝 **Undo/Redo Support**: Experiment freely with Ctrl+Z and Ctrl+Y.
+- 📂 **Direct File System Access**: Save and load graphs locally.
+- 🎨 **Draggable Nodes**: Customize the graph layout interactively.
+
+### Web Version Specific 🌐
+- 💡 **Natural Language Support**: Create graphs using plain English (e.g., "Process P0 requests Resource R1").
+- ⚡ **Real-time Syntax Validation**: Get instant feedback as you type.
+- 🎨 **Dark/Light Theme Support**: Switch between themes for comfort.
+- 📱 **Responsive Design**: Use it on any device—desktop, tablet, or phone.
 
 ---
 
 ## Tech Stack 🛠️
 
-### Website 🌐
-- **Frontend**: Next.js, React, TypeScript, Tailwind CSS, Monaco Editor, Recharts  
-- **Backend**: FastAPI, Python, scikit-learn, NetworkX, NumPy  
+### Standalone Executable 💿
+- **Core**: Python, tkinter (GUI), scikit-learn (ML), joblib (model loading), NumPy (numerical operations)
+- **Packaging**: PyInstaller (for creating the executable)
 
-### Executable 💿
-- Electron, React, TypeScript, Tailwind CSS  
+### Web Version 🌐
+- **Frontend**: Next.js, React, TypeScript, Tailwind CSS, Monaco Editor (code editing), Recharts (visualizations)
+- **Backend**: FastAPI, Python, scikit-learn, NetworkX (graph operations), NumPy
 
 ---
 
 ## Getting Started 🚀
 
 ### Prerequisites ✅
-- **Python 3.8 or higher** *(for website backend)*  
-- **Node.js 14 or higher**  
-- **npm 6 or higher**  
+- **For the Standalone Executable**:
+  - No prerequisites for running the pre-built executable!
+  - To build from source: Python 3.8+, PyInstaller
+- **For the Web Version**:
+  - Python 3.8 or higher (backend)
+  - Node.js 14 or higher (frontend)
+  - npm 6 or higher
 
-### Installation 📥
+### Installation and Running 📥
 
-1. **Clone the repository**  
-```bash
-git clone https://github.com/yourusername/rag-simulator.git
-cd rag-simulator
-```
+#### For the Standalone Executable 💿
+1. **Option 1: Download Pre-built Executable**
+   - Grab the latest `rag-simulator.exe` from the [releases page](https://github.com/yourusername/rag-simulator/releases).
+   - Double-click to run—no installation needed!
 
-2. **Install dependencies**  
-```bash
-npm install
-```
+2. **Option 2: Build from Source**
+   - Clone the repository:
+     ```bash
+     git clone https://github.com/yourusername/rag-simulator.git
+     cd rag-simulator
+     ```
+   - Install dependencies:
+     ```bash
+     pip install -r requirements.txt
+     ```
+   - Build the executable with PyInstaller:
+     ```bash
+     pyinstaller --onefile --windowed simulator.py
+     ```
+   - Find the executable in the `dist/` folder and run it.
 
-3. **Install backend dependencies** *(for website)*  
-```bash
-cd backend
-pip install -r requirements.txt
-```
+#### For the Web Version 🌐
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/yourusername/rag-simulator.git
+   cd rag-simulator
+   ```
 
-4. **Build the executable** *(optional)*  
-```bash
-npm run build:exe
-```
+2. **Install Frontend Dependencies**
+   ```bash
+   npm install
+   ```
 
-### Running the Application 🏃‍♂️
+3. **Install Backend Dependencies**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
 
-#### Website 🌐
-1. Start the backend server  
-```bash
-cd backend
-uvicorn main:app --reload
-```
+4. **Start the Backend Server**
+   ```bash
+   uvicorn main:app --reload
+   ```
 
-2. Start the frontend development server  
-```bash
-npm run dev
-```
-
-*The website will be available at `http://localhost:3000`*
-
-#### Executable 💿
-1. Navigate to the `dist` folder  
-2. Run the executable file (`rag-simulator.exe` on Windows, etc.)  
+5. **Start the Frontend Development Server**
+   ```bash
+   npm run dev
+   ```
+   - Open your browser to `http://localhost:3000`.
 
 ---
 
 ## Usage 📖
 
-1. Launch the application *(website or exe)*  
-2. Create a resource allocation graph using:  
-   - The **RAG language** syntax  
-   - **Natural language** description  
-   - **Visual editor**  
-3. Analyze deadlocks and resource utilization  
-4. Export and save your graphs  
+1. **Launch the Application**:
+   - Executable: Run the `.exe` file or Python script.
+   - Web: Visit `http://localhost:3000` after starting the servers.
+
+2. **Create a Graph**:
+   - **Executable**: Use the GUI to add processes/resources and create request/allocation edges.
+   - **Web**: Use the visual editor, RAG language, or natural language input.
+
+3. **Analyze**:
+   - Detect deadlocks, check safety, predict deadlock percentages, or resolve deadlocks.
+
+4. **Save Your Work**:
+   - Export graphs as JSON (both versions).
+   - Import saved states to pick up where you left off.
 
 ### RAG Language Example 📝
-
+This syntax works in both versions (web version also supports natural language):
 ```plaintext
 create_graph {
   processes = [P0, P1];
@@ -120,29 +154,30 @@ create_graph {
 
 ## Contributing 🤝
 
-Contributions are welcome! Feel free to submit a **Pull Request** and join the journey! 🌟  
+We’d love your help! Feel free to:
+- Open an issue to report bugs or suggest features.
+- Submit a **Pull Request** with your improvements. 🌟
 
 ---
 
 ## License 📄
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.  
+This project is licensed under the **MIT License**—see the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## Acknowledgments 🙏
 
-- A big **thank you** to all contributors!  
-- Built with [shadcn/ui](https://ui.shadcn.com/)  
-- Inspired by operating systems education  
+- A big **thank you** to all contributors!
+- Web version built with [shadcn/ui](https://ui.shadcn.com/).
+- Inspired by operating systems education and deadlock theory.
 
 ---
 
 ## Contact 📧
 
-**Your Name** - [@yourusername](https://twitter.com/yourusername)  
-
-**Project Link**: [https://github.com/yourusername/rag-simulator](https://github.com/yourusername/rag-simulator)  
+**Your Name** - [Shivam Panjolia](https://github.com/LusmicSam/)  
+**Project Link**: [https://github.com/yourusername/rag-simulator](https://github.com/LusmicSam/-Simulator_Resource_Allocation))
 
 ---
 
@@ -150,12 +185,3 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ---
 
-### Customization Instructions
-To make this README perfect for your project:
-1. **Replace `yourusername`** with your actual GitHub username in the clone URL and contact section.
-2. **Update contact info** with your real name, Twitter handle, or other preferred contact details.
-3. **Adjust the tech stack** if your executable uses different technologies or if there are additional tools/libraries.
-4. **Verify build commands** for the executable (`npm run build:exe`) and update if your project uses a different command.
-5. **Add specific features** or details unique to your implementation if needed.
-
-This `README.md` is designed to be **engaging**, **easy to navigate**, and **informative**, with emojis adding a fun and modern touch! Let me know if you'd like any tweaks! 😊
