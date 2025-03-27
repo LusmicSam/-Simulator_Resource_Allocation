@@ -177,11 +177,9 @@ This project is licensed under the **MIT License**—see the [LICENSE](LICENSE) 
 ## Contact 📧
 
 **Your Name** - [Shivam Panjolia](https://github.com/LusmicSam/)  
-**Project Link**: [https://github.com/yourusername/rag-simulator](https://github.com/LusmicSam/-Simulator_Resource_Allocation))
+**Project Link**:[https://github.com/LusmicSam/-Simulator_Resource_Allocation])
 
 ---
 
-```
 
----
 
