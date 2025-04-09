@@ -149,7 +149,7 @@ class RAGSimulator(tk.Tk):
 
         # Attempt to load the ML model
         try:
-            self.ml_model = joblib.load(resource_path('C:/Users/shiva/OneDrive/Documents/GitHub/-Simulator_Resource_Allocation/rag_deadlock_model.joblib'))
+            self.ml_model = joblib.load(resource_path('rag_deadlock_model.joblib'))
         except Exception as e:
             messagebox.showwarning("ML Model Missing", "ML model could not be loaded. Deadlock prediction will be disabled.")
             self.status_message = "ML model not loaded"
