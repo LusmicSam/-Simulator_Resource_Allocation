@@ -1,3 +1,4 @@
+#import statements
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from collections import defaultdict
@@ -7,15 +8,15 @@ import json
 import joblib
 import numpy as np
 import os
-
+#exe builder stuff
 def resource_path(relative_path):
     """Get the absolute path to a resource, works for dev and PyInstaller."""
     if hasattr(sys, '_MEIPASS'):
         # Running as bundled exe, use temporary directory
         return os.path.join(sys._MEIPASS, relative_path)
     # In development, use the absolute path to the file
-    return os.path.join(os.path.abspath("F:\\resource allocation"), relative_path)
-
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+#graph
 class ResourceAllocationGraph:
     def __init__(self):
         self.processes = set()
@@ -113,8 +114,8 @@ class ResourceAllocationGraph:
         state = {
             "processes": list(self.processes),
             "resources": self.resources,
-            "allocations": dict(self.allocations),
-            "requests": dict(self.requests)
+            "allocations": {f"{k[0]}->{k[1]}": v for k, v in self.allocations.items()},
+            "requests": {f"{k[0]}->{k[1]}": v for k, v in self.requests.items()}
         }
         return json.dumps(state, indent=4)
 
@@ -122,9 +123,9 @@ class ResourceAllocationGraph:
         state = json.loads(state_json)
         self.processes = set(state["processes"])
         self.resources = state["resources"]
-        self.allocations = defaultdict(int, state["allocations"])
-        self.requests = defaultdict(int, state["requests"])
-
+        self.allocations = defaultdict(int, {(k.split("->")[0], k.split("->")[1]): v for k, v in state["allocations"].items()})
+        self.requests = defaultdict(int, {(k.split("->")[0], k.split("->")[1]): v for k, v in state["requests"].items()})
+#simulator
 class RAGSimulator(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -149,7 +150,7 @@ class RAGSimulator(tk.Tk):
 
         # Attempt to load the ML model
         try:
-            self.ml_model = joblib.load(resource_path('rag_deadlock_model.joblib'))
+            self.ml_model = joblib.load(resource_path("rag_deadlock_model.joblib"))
         except Exception as e:
             messagebox.showwarning("ML Model Missing", "ML model could not be loaded. Deadlock prediction will be disabled.")
             self.status_message = "ML model not loaded"
@@ -349,8 +350,7 @@ class RAGSimulator(tk.Tk):
 
     def export_state(self):
         state_json = self.rag.export_state()
-        file_path = filedialog.asksaveasfilename(defaultextension=".json", 
-                                              filetypes=[("JSON files", "*.json")])
+        file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
         if file_path:
             with open(file_path, 'w') as file:
                 file.write(state_json)
@@ -363,18 +363,9 @@ class RAGSimulator(tk.Tk):
             try:
                 with open(file_path, 'r') as file:
                     state_json = file.read()
-                self.push_undo_action('import', None, None, self.rag.export_state())
                 self.rag.import_state(state_json)
-                old_positions = self.node_positions.copy()
-                self.node_positions.clear()
-                for p in self.rag.processes:
-                    self.node_positions[p] = old_positions.get(p, self.get_next_node_position('process'))
-                for r in self.rag.resources:
-                    self.node_positions[r] = old_positions.get(r, self.get_next_node_position('resource'))
-                self.clear_selection()
                 self.update_display()
                 messagebox.showinfo("Success", "Graph state imported successfully!")
-                self.status.config(text="State imported")
             except Exception as e:
                 messagebox.showerror("Error", f"Import failed: {str(e)}")
 
@@ -410,32 +401,45 @@ class RAGSimulator(tk.Tk):
             self.node_positions[node] = (x, y)
 
     def draw_edges(self):
-        edge_counter = defaultdict(int)
-        for (p, r), count in self.rag.requests.items():
-            if count > 0 and p in self.node_positions and r in self.node_positions:
-                edge_counter[(p, r)] += 1
-                self.draw_edge(p, r, 'request', count, edge_counter[(p, r)])
-        for (p, r), count in self.rag.allocations.items():
-            if count > 0 and p in self.node_positions and r in self.node_positions:
-                edge_counter[(p, r)] += 1
-                self.draw_edge(p, r, 'allocation', count, edge_counter[(p, r)])
+        for (process, resource), count in self.rag.requests.items():
+            if count > 0:
+                self.draw_edge(process, resource, 'request', count)
 
-    def draw_edge(self, from_node, to_node, edge_type, count, edge_num):
+        for (process, resource), count in self.rag.allocations.items():
+            if count > 0:
+                self.draw_edge(resource, process, 'allocation', count)
+
+    def draw_edge(self, from_node, to_node, edge_type, count, offset=0):
+        """
+        Draws an edge between two nodes with an arrow.
+        :param from_node: The starting node of the edge.
+        :param to_node: The ending node of the edge.
+        :param edge_type: Type of edge ('allocation' or 'request').
+        :param count: The number of instances for the edge.
+        :param offset: Offset to avoid overlapping edges.
+        """
         x1, y1 = self.node_positions[from_node]
         x2, y2 = self.node_positions[to_node]
-        curvature = (edge_num - 1) * 40
-        if edge_num % 2 == 0: curvature *= -1
+
+        # Adjust the line to avoid overlapping edges
         dx, dy = x2 - x1, y2 - y1
-        length = max(1, math.sqrt(dx**2 + dy**2))
-        perpendicular = (-dy/length, dx/length)
-        cpx = (x1 + x2)/2 + perpendicular[0] * curvature
-        cpy = (y1 + y2)/2 + perpendicular[1] * curvature
-        color = '#FF3333' if edge_type == 'request' else '#333333'
-        self.canvas.create_line(x1, y1, cpx, cpy, x2, y2, smooth=True, splinesteps=24,
-                              arrow=tk.LAST if edge_type == 'allocation' else tk.FIRST,
-                              fill=color, width=2)
-        self.canvas.create_text(cpx, cpy, text=str(count), fill=color, 
-                              font=('Arial', 10, 'bold'), tags='edge_label')
+        length = max(1, (dx**2 + dy**2)**0.5)
+        perpendicular = (-dy / length, dx / length)
+        x1 += offset * perpendicular[0]
+        y1 += offset * perpendicular[1]
+        x2 += offset * perpendicular[0]
+        y2 += offset * perpendicular[1]
+
+        # Set the color based on the edge type
+        color = 'black' if edge_type == 'allocation' else 'red'
+
+        # Draw the line with an arrow
+        self.canvas.create_line(x1, y1, x2, y2, arrow=tk.LAST, fill=color, width=2)
+
+        # Add a label for the count
+        label_x = (x1 + x2) / 2
+        label_y = (y1 + y2) / 2
+        self.canvas.create_text(label_x, label_y, text=str(count), fill=color, font=('Arial', 10, 'bold'))
 
     def draw_nodes(self):
         for node in self.rag.processes:
@@ -574,7 +578,12 @@ class RAGSimulator(tk.Tk):
             return
         action = self.undo_stack.pop()
         action_type = action['type']
-        if action_type == 'request':
+        if action_type == 'import':
+            prev_state_json = action['prev_state']
+            prev_state = json.loads(prev_state_json)
+            self.rag.import_state(prev_state["rag_state"])
+            self.node_positions = prev_state["node_positions"]
+        elif action_type == 'request':
             self.rag.requests[(action['node1'], action['node2'])] -= action['count']
             if self.rag.requests[(action['node1'], action['node2'])] <= 0:
                 del self.rag.requests[(action['node1'], action['node2'])]
@@ -684,6 +693,7 @@ class RAGSimulator(tk.Tk):
                 self.status.config(text="System is not safe")
         except Exception as e:
             messagebox.showerror("Error", str(e))
+    
     def extract_features(self):
         rag = self.rag
         n_processes = len(rag.processes)
@@ -760,8 +770,6 @@ class RAGSimulator(tk.Tk):
         ]
         return features
 
-    
-
     def predict_deadlock_percentage(self):
         if not self.ml_model:
             messagebox.showwarning("ML Prediction Disabled", "ML model is not loaded. Deadlock prediction is unavailable.")
@@ -775,7 +783,6 @@ class RAGSimulator(tk.Tk):
             self.status.config(text=f"ML Prediction: {prediction:.2f}% deadlock")
         except Exception as e:
             messagebox.showerror("Error", f"ML Prediction failed: {str(e)}")
-
 
     def get_next_node_position(self, node_type):
         existing = [pos for node, pos in self.node_positions.items()
@@ -817,52 +824,46 @@ class RAGSimulator(tk.Tk):
         else:
             self.process_termination(deadlocked_processes)
 
+    
     def resource_preemption(self, deadlocked_processes):
-        """Resolve deadlock by preempting resources from deadlocked processes."""
         try:
             for process in deadlocked_processes:
+                # Remove allocations
                 for resource, allocation in list(self.rag.allocations.items()):
                     if resource[0] == process:
                         self.rag.remove_allocation(process, resource[1], allocation)
-                        self.status.config(text=f"Resources preempted from {process}")
-            self.update_display()
-            messagebox.showinfo("Resource Preemption", "Deadlock resolved by preempting resources.")
-        except Exception as e:
-            messagebox.showerror("Error", f"Resource preemption failed: {str(e)}")
-
-    def process_termination(self, deadlocked_processes):
-        """Resolve deadlock by terminating deadlocked processes."""
-        try:
-            for process in deadlocked_processes:
-                self.rag.processes.remove(process)
-                self.node_positions.pop(process, None)
-                for resource in list(self.rag.allocations.keys()):
-                    if resource[0] == process:
-                        self.rag.remove_allocation(process, resource[1])
+                # Remove requests
                 for request in list(self.rag.requests.keys()):
                     if request[0] == process:
                         del self.rag.requests[request]
             self.update_display()
-            messagebox.showinfo("Process Termination", "Deadlock resolved by terminating processes.")
+            # Recheck deadlock
+            deadlock, _ = self.rag.detect_deadlock()
+            if deadlock:
+                messagebox.showwarning("Partial Resolution", "Deadlock persists after preemption.")
+            else:
+                messagebox.showinfo("Resource Preemption", "Deadlock resolved by preempting resources.")
+            self.status.config(text="Resource preemption applied")
         except Exception as e:
-            messagebox.showerror("Error", f"Process termination failed: {str(e)}")
+            messagebox.showerror("Error", f"Resource preemption failed: {str(e)}")
+
     def reset_graph(self):
+        """Reset the graph and clear the UI."""
         if not messagebox.askyesno("Reset", "Are you sure you want to clear everything?"):
             self.status.config(text="Reset canceled")
             return  # Exit if user selects "No"
 
         try:
-        # Debugging: Confirm method is triggered
             print("Resetting graph...")
 
-        # Optionally save the current state for undo (if desired)
-        # Commenting this out since you clear stacks later; remove if undo not needed
-        # self.push_undo_action('import', None, None, self.rag.export_state())
+            # Optionally save the current state for undo (if desired)
+            # Commenting this out since you clear stacks later; remove if undo not needed
+            # self.push_undo_action('import', None, None, self.rag.export_state())
 
-        # Reset the Resource Allocation Graph
+            # Reset the Resource Allocation Graph
             self.rag = ResourceAllocationGraph()
-        
-        # Reset UI-related attributes
+            
+            # Reset UI-related attributes
             self.node_positions.clear()
             self.selected_nodes.clear()
             self.dragging = None
@@ -874,17 +875,17 @@ class RAGSimulator(tk.Tk):
             self.undo_stack.clear()
             self.redo_stack.clear()
 
-        # Clear input fields
+            # Clear input fields
             self.process_entry.delete(0, tk.END)
             self.resource_entry.delete(0, tk.END)
             self.instance_spin.set(1)
             self.count_spin.set(1)
 
-        # Update the display
+            # Update the display
             self.canvas.delete("all")  # Explicitly clear canvas
             self.update_display()
 
-        # Update status bar
+            # Update status bar
             self.status.config(text="Graph reset successfully")
             print("Graph reset completed.")
 

@@ -233,4 +233,4 @@ if __name__ == "__main__":
     X, y = generate_dataset(n_samples=1000)
     predictor = DeadlockPredictor()
     predictor.train(X, y)
-    predictor.save_model()
+    #predictor.save_model()
